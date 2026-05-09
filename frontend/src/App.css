@@ -1,0 +1,97 @@
+/* App.css */
+.dashboard-container {
+  padding: 30px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f4f7f6;
+  min-height: 100vh;
+}
+
+.dashboard-title {
+  text-align: center;
+  color: #2c3e50;
+  margin-bottom: 30px;
+}
+
+.charts-grid {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap; /* Permite que bajen si la pantalla es pequeña */
+  justify-content: space-between; /* Espacio uniforme entre ellas */
+  width: 100%;
+}
+
+.chart-card {
+  /* Usamos flex: 1 para que ambas crezcan y ocupen el mismo espacio disponible */
+  flex: 1; 
+  min-width: 400px; /* Ancho mínimo para que no se vean aplastadas */
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  
+  /* Altura fija opcional para que se vean simétricas */
+  min-height: 350px; 
+}
+
+.chart-card:hover {
+  transform: translateY(-5px);
+}
+
+.table-section-title {
+  margin-top: 40px;
+  color: #2c3e50;
+}
+
+.table-container {
+  overflow-x: auto;
+  background-color: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table-header {
+  background-color: #2c3e50;
+  color: #fff;
+}
+
+.table-header th {
+  padding: 15px;
+  font-weight: 600;
+}
+
+.table-row {
+  border-bottom: 1px solid #eee;
+  text-align: center;
+  transition: background-color 0.2s;
+}
+
+.table-row:hover {
+  background-color: #f9f9f9;
+}
+
+.table-cell {
+  padding: 12px;
+}
+
+.badge {
+  padding: 5px 10px;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.85em;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.badge-tcp { background-color: #FF6384; }
+.badge-udp { background-color: #4BC0C0; }
+
+.json-content {
+  font-size: 0.8em;
+  color: #7f8c8d;
+  font-family: 'Courier New', Courier, monospace;
+}
