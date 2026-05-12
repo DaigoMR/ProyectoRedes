@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Line } from 'react-chartjs-2'; // Solo usamos Line para ambas ahora
+import { Line, Bar, Doughnut } from 'react-chartjs-2';
 import { Chart as ChartJS, registerables } from 'chart.js';
 import './App.css';
 
@@ -11,7 +11,10 @@ function App() {
   const fetchDatos = () => {
     fetch('http://127.0.0.1:8000/api/datos')
       .then(res => res.json())
-      .then(json => setDatos(json.data))
+      .then(json => {
+        const records = Array.isArray(json) ? json : (json.data || []);
+        setDatos(records);
+      })
       .catch(err => console.error("Error API:", err));
   };
 
@@ -21,109 +24,143 @@ function App() {
     return () => clearInterval(intervalo);
   }, []);
 
-  // --- 1. FILTRADO DE DATOS ---
-  const datosUDP = datos.filter(d => d.origen === 'UDP');
-  const datosTCP = datos.filter(d => d.origen === 'TCP');
+  // Filtros
+  const datosOrdenes = datos.filter(d => d.origen === 'ORDEN');
+  const datosProductos = datos.filter(d => d.origen === 'PRODUCTO');
+  const datosTCP = datos.filter(d => d.origen === 'ORDEN' || d.origen === 'PRODUCTO');
 
-  // --- 2. LÓGICA DE SERIE TEMPORAL (Ventas Históricas TCP) ---
-  const ventasPorMes = datosTCP.reduce((acc, reg) => {
-    try {
-      const lineaCsv = reg.contenido.dato;
-      if (lineaCsv) {
-        const columnas = lineaCsv.split(',');
-        const fechaString = columnas[3]; // Columna order_purchase_timestamp
-        if (fechaString) {
-          const mesAnio = fechaString.trim().substring(0, 7); // YYYY-MM
-          acc[mesAnio] = (acc[mesAnio] || 0) + 1;
-        }
+  // UDP con fix para raw_data
+  const datosUDP = datos
+    .filter(d => d.origen === 'UDP')
+    .map(d => {
+      let contenido = d.contenido;
+      if (contenido?.raw_data && typeof contenido.raw_data === 'string') {
+        try { contenido = JSON.parse(contenido.raw_data); } catch (e) {}
       }
-    } catch (e) { console.error("Error procesando CSV:", e); }
+      return { ...d, contenido };
+    });
+
+  // Gráfica ventas por mes
+  const ventasPorMes = datosOrdenes.reduce((acc, reg) => {
+    const fecha = reg.contenido?.order_purchase_timestamp;
+    if (fecha && typeof fecha === 'string') {
+      const mesAnio = fecha.substring(0, 7);
+      acc[mesAnio] = (acc[mesAnio] || 0) + 1;
+    }
     return acc;
   }, {});
-
   const etiquetasMeses = Object.keys(ventasPorMes).sort();
   const valoresMensuales = etiquetasMeses.map(m => ventasPorMes[m]);
-
-  const temporalData = {
+  const ventasData = {
     labels: etiquetasMeses,
     datasets: [{
-      label: 'Ventas Mensuales (Olist)',
+      label: 'Órdenes por mes',
       data: valoresMensuales,
-      borderColor: '#FF6384',
-      backgroundColor: 'rgba(255, 99, 132, 0.2)',
-      fill: true,
-      tension: 0.4,
+      borderColor: '#2563eb',
+      backgroundColor: 'rgba(37, 99, 235, 0.15)',
+      fill: true, tension: 0.4
     }]
   };
 
-  // --- 3. CONFIGURACIÓN TELEMETRÍA (Sensores UDP) ---
-  const lineDataUDP = {
-    labels: datosUDP.map(d => new Date(d.fecha).toLocaleTimeString()),
+  // Gráfica estados de órdenes
+  const estadosOrdenes = datosOrdenes.reduce((acc, reg) => {
+    const estado = reg.contenido?.order_status;
+    if (estado) acc[estado] = (acc[estado] || 0) + 1;
+    return acc;
+  }, {});
+  const estadosData = {
+    labels: Object.keys(estadosOrdenes),
     datasets: [{
-      label: 'Temperatura °C (Sensores)',
-      data: datosUDP.map(d => d.contenido.temperatura),
-      borderColor: '#36A2EB',
-      backgroundColor: 'rgba(54, 162, 235, 0.2)',
+      label: 'Cantidad de órdenes',
+      data: Object.values(estadosOrdenes),
+      backgroundColor: ['#22c55e', '#f97316', '#ef4444', '#3b82f6', '#a855f7']
+    }]
+  };
+
+  // Gráfica categorías de productos
+  const categoriasProductos = datosProductos.reduce((acc, reg) => {
+    const categoria = reg.contenido?.product_category_name;
+    if (categoria) acc[categoria] = (acc[categoria] || 0) + 1;
+    return acc;
+  }, {});
+  const categoriasOrdenadas = Object.entries(categoriasProductos).sort((a, b) => b[1] - a[1]).slice(0, 10);
+  const categoriasData = {
+    labels: categoriasOrdenadas.map(item => item[0]),
+    datasets: [{
+      data: categoriasOrdenadas.map(item => item[1]),
+      backgroundColor: ['#2563eb', '#ec4899', '#f97316', '#22c55e', '#a855f7']
+    }]
+  };
+
+  // Gráfica telemetría UDP (fix aplicado)
+  const telemetriaData = {
+    labels: datosUDP.slice(-20).map(d => new Date(d.fecha).toLocaleTimeString()),
+    datasets: [{
+      label: 'Temperatura °C',
+      data: datosUDP.slice(-20).map(d => d.contenido?.temperatura ?? null),
+      borderColor: '#ec4899',
+      backgroundColor: 'rgba(236, 72, 153, 0.1)',
       fill: true,
       tension: 0.4
     }]
   };
 
+  const commonOptions = { responsive: true, maintainAspectRatio: false };
+
   return (
     <div className="dashboard-container">
-      <h1 className="dashboard-title">Sistema Distribuido & Telemetría</h1>
-      
-      <div className="charts-grid">
-        {/* Gráfica de Telemetría */}
-        <div className="chart-card">
-          <h3>Telemetría en Tiempo Real (UDP)</h3>
-          <Line data={lineDataUDP} />
-        </div>
-
-        {/* Gráfica de Serie Temporal (Ventas) */}
-        <div className="chart-card" style={{ width: '40%' }}>
-          <h3>Tendencia Histórica de Ventas (TCP)</h3>
-          <Line 
-            data={temporalData} 
-            options={{
-              responsive: true,
-              scales: {
-                y: { beginAtZero: true, title: { display: true, text: 'Órdenes' } },
-                x: { title: { display: true, text: 'Mes de Compra' } }
-              }
-            }} 
-          />
-        </div>
+      <div className="dashboard-header">
+        <h1 className="dashboard-title">Monitor de Red</h1>
+        <div className="title-spacer"></div>
+        <p className="dashboard-subtitle">TCP & UDP PROTOCOLS</p>
       </div>
 
-      <h3 className="table-section-title">Registro General de Operaciones</h3>
+      <div className="stats-grid">
+        <div className="stat-card"><span>Total</span><h2>{datos.length}</h2></div>
+        <div className="stat-card"><span>TCP</span><h2>{datosTCP.length}</h2></div>
+        <div className="stat-card"><span>UDP</span><h2>{datosUDP.length}</h2></div>
+        <div className="stat-card"><span>Uptime</span><h2>99.9%</h2></div>
+      </div>
+
+      <div className="charts-grid">
+        <div className="chart-card"><h3>Órdenes (TCP)</h3><div className="chart-box"><Line data={ventasData} options={commonOptions} /></div></div>
+        <div className="chart-card"><h3>Estados</h3><div className="chart-box"><Bar data={estadosData} options={commonOptions} /></div></div>
+        <div className="chart-card"><h3>Categorías</h3><div className="chart-box"><Doughnut data={categoriasData} /></div></div>
+        <div className="chart-card"><h3>Telemetría (UDP)</h3><div className="chart-box"><Line data={telemetriaData} options={commonOptions} /></div></div>
+      </div>
+
       <div className="table-container">
-        <table className="data-table">
-          <thead className="table-header">
-            <tr>
-              <th>ID</th>
-              <th>Origen</th>
-              <th>IP Cliente</th>
-              <th>Fecha Registro</th>
-              <th>Datos Recibidos</th>
-            </tr>
-          </thead>
-          <tbody>
-            {datos.slice().reverse().map(reg => (
-              <tr key={reg.id} className="table-row">
-                <td className="table-cell">{reg.id}</td>
-                <td className="table-cell">
-                  <span className={`badge ${reg.origen === 'TCP' ? 'badge-tcp' : 'badge-udp'}`}>
-                    {reg.origen}
-                  </span>
-                </td>
-                <td className="table-cell">{reg.cliente_info}</td>
-                <td className="table-cell">{new Date(reg.fecha).toLocaleString()}</td>
-                <td className="table-cell json-content">{JSON.stringify(reg.contenido)}</td>
+        <h3 className="table-title">Registros del Servidor</h3>
+        <div className="table-scroll">
+          <table className="data-table">
+            <thead>
+              <tr className="table-header">
+                <th>ID</th>
+                <th>Protocolo</th>
+                <th>Cliente</th>
+                <th>Fecha</th>
+                <th>Contenido</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {datos.slice().reverse().slice(0, 50).map(reg => {
+                const esTCP = reg.origen === 'ORDEN' || reg.origen === 'PRODUCTO' || reg.origen === 'TCP';
+                const label = esTCP ? 'TCP' : 'UDP';
+                return (
+                  <tr key={reg.id} className="table-row">
+                    <td>{reg.id}</td>
+                    <td><span className={`badge badge-${label.toLowerCase()}`}>{label}</span></td>
+                    <td>{reg.cliente_info}</td>
+                    <td>{new Date(reg.fecha).toLocaleString()}</td>
+                    <td className="json-content">
+                      <pre>{JSON.stringify(reg.contenido, null, 2)}</pre>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

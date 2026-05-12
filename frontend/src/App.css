@@ -1,97 +1,133 @@
-/* App.css */
+/* --- CONFIGURACIÓN GENERAL --- */
+* { box-sizing: border-box; }
+
+body { 
+  margin: 0; 
+  background-color: #f3f0ff; /* Fondo Lila Suave */
+}
+
 .dashboard-container {
-  padding: 30px;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background-color: #f4f7f6;
   min-height: 100vh;
+  padding: 60px 40px;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: linear-gradient(135deg, #f3f0ff 0%, #e9e4ff 100%);
+}
+
+/* --- TÍTULOS Y SEPARACIÓN --- */
+.dashboard-header {
+  text-align: center;
+  margin-bottom: 80px; /* Separación amplia con las gráficas */
 }
 
 .dashboard-title {
+  font-size: 3.8rem;
+  font-weight: 900;
+  color: #2d1b69; /* Morado Oscuro */
+  margin: 0;
+  letter-spacing: -2px;
+}
+
+.title-spacer { height: 18px; }
+
+.dashboard-subtitle {
+  font-size: 1.1rem;
+  color: #7c3aed;
+  font-weight: 800;
+  letter-spacing: 5px;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+/* --- TARJETAS Y GRÁFICAS --- */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 25px;
+  margin-bottom: 50px;
+}
+
+.stat-card {
+  background: white;
+  padding: 25px;
+  border-radius: 20px;
+  box-shadow: 0 10px 25px rgba(124, 58, 237, 0.1);
   text-align: center;
-  color: #2c3e50;
-  margin-bottom: 30px;
 }
 
 .charts-grid {
-  display: flex;
-  gap: 20px;
-  flex-wrap: wrap; /* Permite que bajen si la pantalla es pequeña */
-  justify-content: space-between; /* Espacio uniforme entre ellas */
-  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+  gap: 30px;
+  margin-bottom: 60px;
 }
 
 .chart-card {
-  /* Usamos flex: 1 para que ambas crezcan y ocupen el mismo espacio disponible */
-  flex: 1; 
-  min-width: 400px; /* Ancho mínimo para que no se vean aplastadas */
-  background-color: #fff;
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-  
-  /* Altura fija opcional para que se vean simétricas */
-  min-height: 350px; 
+  background: white;
+  padding: 25px;
+  border-radius: 24px;
+  box-shadow: 0 20px 25px rgba(0, 0, 0, 0.05);
 }
 
-.chart-card:hover {
-  transform: translateY(-5px);
-}
+.chart-box { height: 320px; }
 
-.table-section-title {
-  margin-top: 40px;
-  color: #2c3e50;
-}
-
+/* --- TABLA CON COLUMNAS CONTROLADAS --- */
 .table-container {
-  overflow-x: auto;
-  background-color: #fff;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  background: white;
+  padding: 35px;
+  border-radius: 24px;
+  box-shadow: 0 20px 25px rgba(0, 0, 0, 0.05);
 }
+
+.table-scroll { overflow-x: auto; }
 
 .data-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed; /* OBLIGATORIO para controlar anchos */
 }
 
-.table-header {
-  background-color: #2c3e50;
-  color: #fff;
-}
+/* ANCHOS DE COLUMNAS ESPECÍFICOS */
+.data-table th:nth-child(1) { width: 60px; }   /* ID */
+.data-table th:nth-child(2) { width: 100px; }  /* Protocolo */
+.data-table th:nth-child(3) { width: 150px; }  /* Cliente */
+.data-table th:nth-child(4) { width: 150px; }  /* Fecha */
+.data-table th:nth-child(5) { width: auto; }   /* CONTENIDO (Flexible y Grande) */
 
 .table-header th {
+  text-align: left;
   padding: 15px;
-  font-weight: 600;
+  color: #64748b;
+  border-bottom: 2px solid #f3f0ff;
 }
 
-.table-row {
-  border-bottom: 1px solid #eee;
-  text-align: center;
-  transition: background-color 0.2s;
+.table-row td {
+  padding: 15px;
+  border-bottom: 1px solid #f8fafc;
+  vertical-align: top;
 }
 
-.table-row:hover {
-  background-color: #f9f9f9;
-}
-
-.table-cell {
-  padding: 12px;
-}
-
+/* BADGES */
 .badge {
-  padding: 5px 10px;
-  border-radius: 6px;
-  color: #fff;
-  font-size: 0.85em;
-  font-weight: bold;
-  text-transform: uppercase;
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-weight: 800;
+  font-size: 0.7rem;
+  color: white;
+  display: inline-block;
 }
+.badge-tcp { background: #3b82f6; }
+.badge-udp { background: #d946ef; }
 
-.badge-tcp { background-color: #FF6384; }
-.badge-udp { background-color: #4BC0C0; }
-
-.json-content {
-  font-size: 0.8em;
-  color: #7f8c8d;
-  font-family: 'Courier New', Courier, monospace;
+/* ESTILO DEL JSON */
+.json-content pre {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 15px;
+  border-radius: 12px;
+  font-family: 'Consolas', monospace;
+  font-size: 0.8rem;
+  color: #334155;
+  white-space: pre-wrap; /* Evita que el JSON se desborde horizontalmente */
+  word-break: break-all;
+  margin: 0;
 }
