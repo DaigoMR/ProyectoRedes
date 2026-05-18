@@ -75,7 +75,7 @@ export default function TabRetencion() {
     async function fetchRetencion() {
       try {
         setLoading(true);
-        const res  = await fetch("http://localhost:8000/api/negocio/retencion");
+        const res = await fetch("/api/negocio/retencion");
         
         let data = {};
         if (res.ok) {

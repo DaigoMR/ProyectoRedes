@@ -66,7 +66,7 @@ export default function TabCalidad() {
     async function fetchCalidad() {
       try {
         setLoading(true);
-        const res  = await fetch("http://localhost:8000/api/negocio/calidad");
+        const res = await fetch("/api/negocio/calidad");
         
         let data = {};
         if (res.ok) {

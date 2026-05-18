@@ -48,7 +48,7 @@ export default function TabComportamiento() {
     async function consumirAnaliticaReal() {
       try {
         setLoading(true);
-        const res = await fetch("http://localhost:8000/api/negocio/comportamiento-compra");
+        const res = await fetch("/api/negocio/comportamiento-compra");
         
         let data = {};
         if (res.ok) {

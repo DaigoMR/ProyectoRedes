@@ -5,7 +5,7 @@ import {
 } from "recharts";
 
 // ── CORRECCIÓN CRÍTICA: Apuntamos al endpoint real que declaraste en main.py ──
-const API_URL = "http://localhost:8000/api/telemetria/packets";
+const API_URL = "/api/telemetria/packets";
 const POLL_MS  = 3000; // polling cada 3 segundos
 
 // Colores por protocolo

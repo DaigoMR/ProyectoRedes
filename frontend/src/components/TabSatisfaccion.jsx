@@ -95,7 +95,7 @@ export default function TabSatisfaccion() {
     async function fetchSatisfaccion() {
       try {
         setLoading(true);
-        const res = await fetch("http://localhost:8000/api/negocio/satisfaccion");
+        const res = await fetch("/api/negocio/satisfaccion");
         if (!res.ok) throw new Error("Backend no disponible");
         const data = await res.json();
 
