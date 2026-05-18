@@ -1,23 +1,13 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "servicioApi.py",
-      "use": "@vercel/python"
+  "experimentalServices": {
+    "frontend": {
+      "entrypoint": "frontend",
+      "routePrefix": "/",
+      "framework": "vite"
     },
-    {
-      "src": "package.json",
-      "use": "@vercel/static-build"
+    "backend": {
+      "entrypoint": "backend",
+      "routePrefix": "/api"
     }
-  ],
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "servicioApi.py"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/"
-    }
-  ]
+  }
 }
