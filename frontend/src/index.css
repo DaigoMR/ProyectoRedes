@@ -8,8 +8,7 @@
   --accent-bg: rgba(170, 59, 255, 0.1);
   --accent-border: rgba(170, 59, 255, 0.5);
   --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  --shadow: rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
 
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
@@ -41,8 +40,7 @@
     --accent-bg: rgba(192, 132, 252, 0.15);
     --accent-border: rgba(192, 132, 252, 0.5);
     --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+    --shadow: rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
   }
 
   #social .button-icon {
@@ -50,22 +48,32 @@
   }
 }
 
+/* ── RESETEO CRÍTICO PARA LA DISTRIBUCIÓN DEL DASHBOARD ── */
+html,
 body {
-  margin: 0;
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 100vw !important;
+  max-width: 100vw !important;
+  height: 100vh !important;
+  max-height: 100vh !important;
+  overflow: hidden !important; /* Bloquea scrolls fantasmas */
 }
 
 #root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
+  width: 100vw !important;       /* Cambiado de 1126px a 100vw (Ancho completo) */
+  max-width: 100vw !important;   /* Forzado total de extremo a extremo */
+  height: 100vh !important;
+  max-height: 100vh !important;
+  margin: 0 !important;          /* Eliminado el centrado "auto" que arruinaba la sidebar */
+  padding: 0 !important;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
+/* ── TIPOGRAFÍAS Y ELEMENTOS MENORES ── */
 h1,
 h2 {
   font-family: var(--heading);
@@ -82,6 +90,7 @@ h1 {
     margin: 20px 0;
   }
 }
+
 h2 {
   font-size: 24px;
   line-height: 118%;
@@ -91,6 +100,7 @@ h2 {
     font-size: 20px;
   }
 }
+
 p {
   margin: 0;
 }
