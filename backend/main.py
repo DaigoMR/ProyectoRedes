@@ -446,25 +446,25 @@ def obtener_retencion():
                 "color": COLORS[s],
             })
 
+        # ── RETORNO CORREGIDO EN MAIN.PY ──
         return {
             "retention_data": retention_data,
             "score_ticket":   score_ticket,
             "funnel": {
-                "totalOrders":    total_orders_reales,    
-                "delivered":      sum(1 for o in orders if str(o.get("order_status")).lower().strip() == "delivered") or int(total_orders_reales * 0.94),
-                "totalReviews":   total_reviews_reales,   
-                "uniqueCustomers": total_uniques_reales,   
-                "recurrentes":    recurrentes_reales,
+                "totalOrders":    int(total_orders_reales),     # Envía el número real global (~99,441)
+                "delivered":      int(delivered_reales),        # Envía el conteo real con filtro 'delivered' (~96,478)
+                "totalReviews":   int(total_reviews_reales),    # Envía el número real global (~99,224)
+                "uniqueCustomers": int(total_uniques_reales),   # Envía el número real sin redondeos (~96,096)
+                "recurrentes":    int(recurrentes_reales)       # Envía tus 2,997 reales de recompra
             },
             "summary": {
-                "retentionRate": retention_rate,
-                "totalUniques":  total_uniques_reales,   
-                "recurrentes":    recurrentes_reales,
-                "ticket1star":   score_ticket[0]["ticket"],
-                "ticket5star":   score_ticket[4]["ticket"],
+                "retentionRate":  float(retention_rate),
+                "totalUniques":   int(total_uniques_reales),   
+                "recurrentes":    int(recurrentes_reales),
+                "ticket1star":    float(score_ticket[0]["ticket"]),
+                "ticket5star":    float(score_ticket[4]["ticket"])
             }
         }
-
     except Exception as e:
         print(f"[API RETENCION CRITICAL ERROR] {e}")
         return _retencion_vacio()

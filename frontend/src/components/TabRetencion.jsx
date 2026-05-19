@@ -122,19 +122,19 @@ export default function TabRetencion() {
         {/* Mapeamos explícitamente buscando las claves exactas que manda el backend de FastAPI */}
         const f = data.funnel || {};
         const normalizedFunnel = {
-          totalOrders: Number(f.totalOrders ?? f.total_orders_reales ?? 99441),
-          delivered: Number(f.delivered ?? f.delivered_reales ?? 96478),
-          totalReviews: Number(f.totalReviews ?? f.total_reviews_reales ?? 99224),
-          uniqueCustomers: Number(f.uniqueCustomers ?? f.total_uniques_reales ?? 96096),
-          recurrentes: Number(f.recurrentes ?? f.recurrentes_reales ?? 2997)
+          totalOrders: f.totalOrders !== undefined ? Number(f.totalOrders) : 99441,
+          delivered: f.delivered !== undefined ? Number(f.delivered) : 96478,
+          totalReviews: f.totalReviews !== undefined ? Number(f.totalReviews) : 99224,
+          uniqueCustomers: f.uniqueCustomers !== undefined ? Number(f.uniqueCustomers) : 96096,
+          recurrentes: f.recurrentes !== undefined ? Number(f.recurrentes) : 2997
         };
 
         {/* 4. MAPEO BLINDADO: OBJETO SUMMARY (KPIs) */}
         const s = data.summary || {};
         const normalizedSummary = {
-          retentionRate: Number(s.retentionRate ?? s.retention_rate ?? 3.1),
-          totalUniques: Number(s.totalUniques ?? s.total_uniques_reales ?? 96096),
-          recurrentes: Number(s.recurrentes ?? s.recurrentes_reales ?? 2997)
+          retentionRate: s.retentionRate !== undefined ? Number(s.retentionRate) : 3.1,
+          totalUniques: s.totalUniques !== undefined ? Number(s.totalUniques) : 96096,
+          recurrentes: s.recurrentes !== undefined ? Number(s.recurrentes) : 2997
         };
         
         setRetentionData(normalizedRet);
