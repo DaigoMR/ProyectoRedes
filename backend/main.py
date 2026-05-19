@@ -357,12 +357,16 @@ def obtener_calidad_real():
 @app.get("/api/negocio/retencion")
 def obtener_retencion():
     try:
-        # 1. CONTEOS EXACTOS DIRECTOS EN POSTGRESQL (Rompen el límite de 1,000 de PostgREST)
+        # 1. CONTEOS REALES DIRECTOS EN POSTGRESQL (Rompen el límite de 1,000 de PostgREST)
         res_count_orders = supabase.table("orders").select("order_id", count="exact").limit(1).execute()
         total_orders_reales = res_count_orders.count if res_count_orders.count is not None else 0
 
         res_count_reviews = supabase.table("order_reviews").select("review_id", count="exact").limit(1).execute()
         total_reviews_reales = res_count_reviews.count if res_count_reviews.count is not None else total_orders_reales
+
+        # Contamos cuántos clientes únicos reales existen en la tabla customers de Supabase
+        res_count_customers = supabase.table("customers").select("customer_unique_id", count="exact").limit(1).execute()
+        total_uniques_reales = res_count_customers.count if res_count_customers.count is not None else 0
 
         # 2. DESCARGA DE MUESTRAS AMPLIAS PARA PROCESAMIENTO (Límite 3000 para cubrir tus ~1,600 filas)
         res_orders   = supabase.table("orders").select("order_id, customer_id, order_status").limit(3000).execute()
@@ -391,7 +395,7 @@ def obtener_retencion():
         # order_id → review_score
         dict_review = {r["order_id"]: int(r["review_score"] or 5) for r in reviews if "order_id" in r}
 
-        # ── Clientes únicos vs recurrentes (Matemática pura sobre tus datos) ──
+        # ── Clientes únicos vs recurrentes (Matemática pura sobre la muestra) ──
         unique_order_count = {}  
         for o in orders:
             cid = o.get("customer_id")
@@ -402,18 +406,21 @@ def obtener_retencion():
                 
             unique_order_count[uid] = unique_order_count.get(uid, 0) + 1
 
-        total_uniques = len(unique_order_count)
+        # Calculamos la recurrencia sobre los datos cargados en memoria
         recurrentes = sum(1 for cnt in unique_order_count.values() if cnt >= 2)
-        solo_una_compra = max(0, total_uniques - recurrentes)
-        total_uniques_safe = total_uniques if total_uniques > 0 else 1
+        
+        # Usamos el conteo real e ilimitado de la base de datos para estabilizar la métrica global
+        total_uniques_safe = total_uniques_reales if total_uniques_reales > 0 else 1
+        solo_una_compra = max(0, total_uniques_reales - recurrentes)
 
+        # Tasa de retención real calculada matemáticamente sin inyecciones artificiales
         retention_rate = round((recurrentes / total_uniques_safe) * 100, 1)
 
         retention_data = [
             {
                 "name": "Clientes únicos (1 compra)",
                 "value": solo_una_compra,
-                "pct": round(solo_una_compra / total_uniques_safe * 100, 1),
+                "pct": round((solo_una_compra / total_uniques_safe) * 100, 1) if total_uniques_reales > 0 else 0,
                 "color": "#6c8dfa",
             },
             {
@@ -454,15 +461,15 @@ def obtener_retencion():
             "retention_data": retention_data,
             "score_ticket":   score_ticket,
             "funnel": {
-                "totalOrders":    total_orders_reales,    # Conteo exacto ilimitado de órdenes
+                "totalOrders":    total_orders_reales,    
                 "delivered":      sum(1 for o in orders if str(o.get("order_status")).lower().strip() == "delivered") or int(total_orders_reales * 0.94),
-                "totalReviews":   total_reviews_reales,   # Conteo exacto ilimitado de reseñas
-                "uniqueCustomers": total_uniques,          # Compradores únicos calculados orgánicamente sobre la muestra
+                "totalReviews":   total_reviews_reales,   
+                "uniqueCustomers": total_uniques_reales,   # Enviamos el número real sin topes de 1000 al funnel
                 "recurrentes":    recurrentes,
             },
             "summary": {
                 "retentionRate": retention_rate,
-                "totalUniques":  total_uniques,
+                "totalUniques":  total_uniques_reales,   # <─── ¡AQUÍ SE ASIGNA EL CONTEO ILIMITADO REAL!
                 "recurrentes":    recurrentes,
                 "ticket1star":   score_ticket[0]["ticket"],
                 "ticket5star":   score_ticket[4]["ticket"],
