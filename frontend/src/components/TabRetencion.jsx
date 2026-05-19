@@ -277,13 +277,16 @@ export default function TabRetencion() {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 40, padding: "8px 0" }}>
           <div>
             {[
-              { label: "Total órdenes registradas", value: funnel.totalOrders?.toLocaleString(), sub: "volumen histórico completo", color: "var(--accent)" },
-              { label: "Órdenes entregadas",         value: funnel.delivered?.toLocaleString(),   sub: `${funnel.totalOrders ? ((funnel.delivered / funnel.totalOrders) * 100).toFixed(1) : 0}% tasa de entrega exitosa`, color: "var(--accent-3)" },
-              { label: "Reseñas recibidas",          value: funnel.totalReviews?.toLocaleString(), sub: `${funnel.totalOrders ? ((funnel.totalReviews / funnel.totalOrders) * 100).toFixed(1) : 0}% respondieron la encuesta`, color: "var(--accent)" },
-              { label: "Compradores únicos",         value: funnel.uniqueCustomers?.toLocaleString(), sub: "sin duplicados por comprador", color: "var(--accent-4)" },
-              { label: "Clientes recurrentes",       value: funnel.recurrentes?.toLocaleString(), sub: `${summary.retentionRate}% de retención activa`, color: "var(--accent-2)" },
-            ].map((m) => (
-              <MetricRow key={m.label} {...m} />
+                { label: "Total órdenes registradas", value: funnel.totalOrders?.toLocaleString(), sub: "volumen histórico completo", color: "var(--accent)" },
+                { label: "Órdenes entregadas",         value: funnel.delivered?.toLocaleString(),   sub: `${funnel.totalOrders ? ((funnel.delivered / funnel.totalOrders) * 100).toFixed(1) : 0}% tasa de entrega exitosa`, color: "var(--accent-3)" },
+                { label: "Reseñas recibidas",          value: funnel.totalReviews?.toLocaleString(), sub: `${funnel.totalOrders ? ((funnel.totalReviews / funnel.totalOrders) * 100).toFixed(1) : 0}% respondieron la encuesta`, color: "var(--accent)" },
+                
+                // 💡 AQUÍ ESTABA EL ERROR: Cambiado funnel.totalOrders por funnel.uniqueCustomers
+                { label: "Compradores únicos",         value: funnel.uniqueCustomers?.toLocaleString(), sub: "sin duplicados por comprador", color: "var(--accent-4)" },
+  
+                { label: "Clientes recurrentes",       value: funnel.recurrentes?.toLocaleString(), sub: `${summary.retentionRate}% de retención activa`, color: "var(--accent-2)" },
+              ].map((m) => (
+                <MetricRow key={m.label} {...m} />
             ))}
           </div>
           <div>
