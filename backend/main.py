@@ -389,6 +389,23 @@ def obtener_retencion():
         # ── Mapas de apoyo indexados en memoria ──
         dict_unique = {c["customer_id"]: c["customer_unique_id"] for c in customers if "customer_id" in c}
 
+        # Cuántos customer_id de orders existen en dict_unique
+        cids_en_orders    = {o.get("customer_id") for o in orders}
+        cids_en_dict      = set(dict_unique.keys())
+        matches           = cids_en_orders & cids_en_dict
+
+        print(f"[DEBUG] Orders:            {len(orders)}")
+        print(f"[DEBUG] Customers tabla:   {len(customers)}")
+        print(f"[DEBUG] dict_unique keys:  {len(cids_en_dict)}")
+        print(f"[DEBUG] customer_ids en orders que SÍ tienen match: {len(matches)}")
+        print(f"[DEBUG] customer_ids en orders SIN match:           {len(cids_en_orders - cids_en_dict)}")
+        
+        # Muestra un ejemplo de cada lado para comparar formato
+        if cids_en_orders:
+            print(f"[DEBUG] Ejemplo customer_id de orders:    {next(iter(cids_en_orders))}")
+        if cids_en_dict:
+            print(f"[DEBUG] Ejemplo customer_id de customers: {next(iter(cids_en_dict))}")
+
         # order_id → precio total (suma de ítems)
         dict_precio = {}
         for it in items:
@@ -521,8 +538,7 @@ def _retencion_vacio():
     }
 
 
-# ── 3. SATISFACCIÓN & ENTREGAS ────────────────────────────────────────────────
-# ── 2. SATISFACCIÓN Y LOGÍSTICA (VERSIÓN DINÁMICA MULTI-ESTADO COMPLETA) ──
+# ── 3. SATISFACCIÓN & ENTREGAS ───────────────────────────────────────────────
 @app.get("/api/negocio/satisfaccion")
 def obtener_satisfaccion_logistica():
     try:
