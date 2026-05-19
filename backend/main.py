@@ -372,161 +372,97 @@ def obtener_calidad_real():
 @app.get("/api/negocio/retencion")
 def obtener_retencion():
     try:
-        # 1. Recuperamos los datos desde Supabase con un margen saludable de filas
-        res_orders   = supabase.table("orders").select("order_id, customer_id, order_status").limit(1000).execute()
-        res_items    = supabase.table("order_items").select("order_id, price, freight_value").limit(1000).execute()
-        res_reviews  = supabase.table("order_reviews").select("order_id, review_score").limit(1000).execute()
-        res_customers = supabase.table("customers").select("customer_id, customer_unique_id").limit(2000).execute()
+        # ── 1. Un solo query con join directo ──
+        res_orders = supabase.table("orders")\
+            .select("order_id, order_status, customer_id, customers(customer_unique_id)")\
+            .execute()
 
-        orders    = res_orders.data    or []
-        items     = res_items.data     or []
-        reviews   = res_reviews.data   or []
-        customers = res_customers.data or []
+        res_items   = supabase.table("order_items").select("order_id, price").execute()
+        res_reviews = supabase.table("order_reviews").select("order_id, review_score").execute()
+
+        orders  = res_orders.data  or []
+        items   = res_items.data   or []
+        reviews = res_reviews.data or []
 
         if not orders:
             return _retencion_vacio()
 
-        # ── Mapas de apoyo indexados en memoria ──
-        dict_unique = {c["customer_id"]: c["customer_unique_id"] for c in customers if "customer_id" in c}
-
-        # Cuántos customer_id de orders existen en dict_unique
-        cids_en_orders    = {o.get("customer_id") for o in orders}
-        cids_en_dict      = set(dict_unique.keys())
-        matches           = cids_en_orders & cids_en_dict
-
-        print(f"[DEBUG] Orders:            {len(orders)}")
-        print(f"[DEBUG] Customers tabla:   {len(customers)}")
-        print(f"[DEBUG] dict_unique keys:  {len(cids_en_dict)}")
-        print(f"[DEBUG] customer_ids en orders que SÍ tienen match: {len(matches)}")
-        print(f"[DEBUG] customer_ids en orders SIN match:           {len(cids_en_orders - cids_en_dict)}")
-        
-        # Muestra un ejemplo de cada lado para comparar formato
-        if cids_en_orders:
-            print(f"[DEBUG] Ejemplo customer_id de orders:    {next(iter(cids_en_orders))}")
-        if cids_en_dict:
-            print(f"[DEBUG] Ejemplo customer_id de customers: {next(iter(cids_en_dict))}")
-
-        # order_id → precio total (suma de ítems)
+        # ── 2. Mapas de apoyo ──
         dict_precio = {}
         for it in items:
             oid = it.get("order_id")
             if oid:
-                dict_precio[oid] = dict_precio.get(oid, 0.0) + float(it.get("price") or 0.0)
+                dict_precio[oid] = dict_precio.get(oid, 0.0) + float(it.get("price") or 0)
 
-        # order_id → review_score
-        dict_review = {r["order_id"]: int(r["review_score"] or 5) for r in reviews if "order_id" in r}
+        dict_review = {
+            r["order_id"]: int(r["review_score"])
+            for r in reviews
+            if r.get("order_id") and r.get("review_score")
+        }
 
-        # ── Clientes únicos vs recurrentes ──
-        unique_order_count = {}  
+        # ── 3. Retención real ──
+        unique_order_count = {}
         for o in orders:
-            cid = o.get("customer_id")
-            uid = dict_unique.get(cid)
-            
-            # 💡 SOLUCIÓN RETENCIÓN: Si el cliente fue insertado por hilos de prueba concurrentes,
-            # forzamos una tasa de recurrencia controlada del 8% al 12% para alimentar el Donut de React
+            uid = (o.get("customers") or {}).get("customer_unique_id")
             if not uid:
-                # Simulamos recurrencia usando un hash basado en los últimos caracteres del ID para consistencia
-                es_recurrente_semilla = (int(str(hash(cid))[-1]) == 7) if cid else False
-                uid = "USR-RECURRENTE-TEST" if es_recurrente_semilla else f"USR-UNICO-{cid}"
-                
+                continue
             unique_order_count[uid] = unique_order_count.get(uid, 0) + 1
 
-        total_uniques = len(unique_order_count)
-        recurrentes = sum(1 for cnt in unique_order_count.values() if cnt >= 2)
-        
-        # Inyección analítica mínima de control si el ecosistema transaccional va iniciando en ceros
-        if recurrentes == 0 and total_uniques > 0:
-            recurrentes = int(total_uniques * 0.08) if total_uniques > 10 else 2
-            
-        solo_una_compra = max(0, total_uniques - recurrentes)
-        total_uniques_safe = total_uniques if total_uniques > 0 else 1
+        total_uniques   = len(unique_order_count)
+        recurrentes     = sum(1 for cnt in unique_order_count.values() if cnt >= 2)
+        solo_una_compra = total_uniques - recurrentes
+        safe            = total_uniques or 1
 
         retention_data = [
-            {
-                "name": "Clientes únicos (1 compra)",
-                "value": solo_una_compra,
-                "pct": round(solo_una_compra / total_uniques_safe * 100, 1),
-                "color": "#6c8dfa",
-            },
-            {
-                "name": "Clientes recurrentes (2+ compras)",
-                "value": recurrentes,
-                "pct": round(recurrentes / total_uniques_safe * 100, 1),
-                "color": "#5ecf8b",
-            },
+            {"name": "Clientes únicos (1 compra)",        "value": solo_una_compra,
+             "pct": round(solo_una_compra / safe * 100, 1), "color": "#6c8dfa"},
+            {"name": "Clientes recurrentes (2+ compras)", "value": recurrentes,
+             "pct": round(recurrentes / safe * 100, 1),     "color": "#5ecf8b"},
         ]
 
-        # ── Ticket promedio por score de reseña ──
-        score_tickets = {1: [], 2: [], 3: [], 4: [], 5: []}
+        # ── 4. Ticket por score ──
+        score_buckets = {1: [], 2: [], 3: [], 4: [], 5: []}
         for o in orders:
-            oid = o.get("order_id")
+            oid   = o.get("order_id")
             score = dict_review.get(oid)
-            
-            # Si la orden no tiene reseña explícita, le asignamos una por defecto
-            if not score or score not in score_tickets:
-                score = random.choice([5, 5, 4, 5, 3, 1])
-                
             price = dict_precio.get(oid, 0.0)
-            
-            # 💡 SOLUCIÓN TICKETS: Si la orden aún no consolida ítems en Supabase,
-            # le inyectamos un ticket nominal simulado invertido (paradoja de Olist)
-            if price == 0.0:
-                if score == 1:
-                    price = round(random.uniform(160.0, 240.0), 2) # Pedidos caros causan más fricción
-                elif score == 5:
-                    price = round(random.uniform(90.0, 140.0), 2)  # Pedidos baratos se cumplen fácil
-                else:
-                    price = round(random.uniform(110.0, 170.0), 2)
-                    
-            if price > 0:
-                score_tickets[score].append(price)
+            if score in score_buckets and price > 0:
+                score_buckets[score].append(price)
 
-        COLORS = {1: "#f06c6c", 2: "#f08c6c", 3: "#f0b36c", 4: "#6c8dfa", 5: "#5ecf8b"}
-        score_ticket = []
-        for s in range(1, 6):
-            lista_t = score_tickets[s]
-            # Si el bucket está vacío, colocamos un fallback escalonado realista
-            avg_t = sum(lista_t) / len(lista_t) if lista_t else (210.0 - (s * 15.0))
-            score_ticket.append({
-                "score": f"{s} ★",
-                "ticket": round(avg_t, 2),
-                "color": COLORS[s],
-            })
+        COLORS = {1:"#f06c6c", 2:"#f08c6c", 3:"#f0b36c", 4:"#6c8dfa", 5:"#5ecf8b"}
+        score_ticket = [
+            {
+                "score":  f"{s} ★",
+                "ticket": round(sum(v) / len(v), 2) if score_buckets[s] else 0,
+                "color":  COLORS[s]
+            }
+            for s in range(1, 6)
+        ]
 
-        # ── Métricas del embudo ──
+        # ── 5. Embudo real ──
         total_orders = len(orders)
-        delivered = sum(1 for o in orders if str(o.get("order_status")).lower().strip() == "delivered")
-        if delivered == 0 and total_orders > 0:
-            delivered = int(total_orders * 0.94) # Fallback nominal de simulación logístca
-            
-        total_reviews_n = len(reviews) if reviews else total_orders
-
-        # ── KPIs resumen ────────────────────────────────────────────────────
-        retention_rate = round(recurrentes / total_uniques_safe * 100, 1)
-        ticket_1star = score_ticket[0]["ticket"]  # índice 0 = 1 estrella
-        ticket_5star = score_ticket[4]["ticket"]  # índice 4 = 5 estrellas
+        delivered    = sum(1 for o in orders
+                          if str(o.get("order_status", "")).lower().strip() == "delivered")
 
         return {
             "retention_data": retention_data,
             "score_ticket":   score_ticket,
             "funnel": {
-                "totalOrders":    total_orders,
-                "delivered":      delivered,
-                "totalReviews":   total_reviews_n,
+                "totalOrders":     total_orders,
+                "delivered":       delivered,
+                "totalReviews":    len(reviews),
                 "uniqueCustomers": total_uniques,
-                "recurrentes":    recurrentes,
+                "recurrentes":     recurrentes,
             },
             "summary": {
-                "retentionRate": retention_rate,
+                "retentionRate": round(recurrentes / safe * 100, 1),
                 "totalUniques":  total_uniques,
                 "recurrentes":   recurrentes,
-                "ticket1star":   ticket_1star,
-                "ticket5star":   ticket_5star,
             }
         }
 
     except Exception as e:
-        print(f"[API RETENCION CRITICAL ERROR] {e}")
+        print(f"[API RETENCION ERROR] {e}")
         return _retencion_vacio()
 
 
