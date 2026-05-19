@@ -38,21 +38,21 @@ function formatFecha(ts) {
 
 function getOrigen(row) {
   if (!row) return "—";
+
+  // 1. Extraemos el origen en mayúsculas para evitar problemas de formato
   const o = (row.origen || "").toString().trim().toUpperCase();
 
+  // 2. Si dice UDP en la columna o en el JSON, es telemetría pura
   if (o === "UDP") return "UDP";
-  if (o === "TCP" || o === "ORDEN" || o === "ITEM" || o === "CLIENTE" || o === "REVIEW") {
-    return "TCP";
-  }
-
+  
   if (row.contenido) {
     const textoContenido = JSON.stringify(row.contenido).toUpperCase();
     if (textoContenido.includes("UDP")) return "UDP";
-    if (textoContenido.includes("ORDER_ID") || textoContenido.includes("CUSTOMER_ID") || textoContenido.includes("TCP")) {
-      return "TCP";
-    }
   }
-  return "—";
+
+  // 3. REGLA DE DESCARTE: Todo lo demás se clasifica como TCP
+  // Esto incluye "TCP", "ORDEN", "ITEM", vacíos o cualquier registro de Olist
+  return "TCP";
 }
 
 // Ventana de agrupamiento temporal de 10 segundos para Recharts
