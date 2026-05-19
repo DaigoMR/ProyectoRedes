@@ -357,11 +357,14 @@ def obtener_calidad_real():
 @app.get("/api/negocio/retencion")
 def obtener_retencion():
     try:
-        # 1. Forzamos el conteo exacto directo en Postgres (Rompe la barrera de las 1,000 filas)
-        res_count = supabase.table("orders").select("order_id", count="exact").limit(1).execute()
-        total_orders_reales = res_count.count if res_count.count is not None else 0
+        # 1. CONTEOS EXACTOS DIRECTOS EN POSTGRESQL (Rompen el límite de 1,000 de PostgREST)
+        res_count_orders = supabase.table("orders").select("order_id", count="exact").limit(1).execute()
+        total_orders_reales = res_count_orders.count if res_count_orders.count is not None else 0
 
-        # 2. Recuperamos los datos de negocio con un límite amplio para tus 1,600 filas
+        res_count_reviews = supabase.table("order_reviews").select("review_id", count="exact").limit(1).execute()
+        total_reviews_reales = res_count_reviews.count if res_count_reviews.count is not None else total_orders_reales
+
+        # 2. DESCARGA DE MUESTRAS AMPLIAS PARA PROCESAMIENTO (Límite 3000 para cubrir tus ~1,600 filas)
         res_orders   = supabase.table("orders").select("order_id, customer_id, order_status").limit(3000).execute()
         res_items    = supabase.table("order_items").select("order_id, price, freight_value").limit(3000).execute()
         res_reviews  = supabase.table("order_reviews").select("order_id, review_score").limit(3000).execute()
@@ -451,10 +454,10 @@ def obtener_retencion():
             "retention_data": retention_data,
             "score_ticket":   score_ticket,
             "funnel": {
-                "totalOrders":    total_orders_reales, # <── Asignamos el conteo real exacto
+                "totalOrders":    total_orders_reales,    # Conteo exacto ilimitado de órdenes
                 "delivered":      sum(1 for o in orders if str(o.get("order_status")).lower().strip() == "delivered") or int(total_orders_reales * 0.94),
-                "totalReviews":   len(reviews) if reviews else total_orders_reales,
-                "uniqueCustomers": total_uniques,
+                "totalReviews":   total_reviews_reales,   # Conteo exacto ilimitado de reseñas
+                "uniqueCustomers": total_uniques,          # Compradores únicos calculados orgánicamente sobre la muestra
                 "recurrentes":    recurrentes,
             },
             "summary": {
