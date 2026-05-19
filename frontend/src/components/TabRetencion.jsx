@@ -119,14 +119,13 @@ export default function TabRetencion() {
         }
 
         {/* 3. MAPEO BLINDADO: EMBUDO DE CONVERSIÓN */}
-        {/* Mapeamos explícitamente buscando las claves exactas que manda el backend de FastAPI */}
         const f = data.funnel || {};
         const normalizedFunnel = {
-          totalOrders: f.totalOrders !== undefined ? Number(f.totalOrders) : 99441,
-          delivered: f.delivered !== undefined ? Number(f.delivered) : 96478,
-          totalReviews: f.totalReviews !== undefined ? Number(f.totalReviews) : 99224,
-          uniqueCustomers: f.uniqueCustomers !== undefined ? Number(f.uniqueCustomers) : 96096,
-          recurrentes: f.recurrentes !== undefined ? Number(f.recurrentes) : 2997
+          totalOrders: f.totalOrders !== undefined ? Number(f.totalOrders) : 0,
+          delivered: f.delivered !== undefined ? Number(f.delivered) : 0,
+          totalReviews: f.totalReviews !== undefined ? Number(f.totalReviews) : 0,
+          uniqueCustomers: f.uniqueCustomers !== undefined ? Number(f.uniqueCustomers) : 0,
+          recurrentes: f.recurrentes !== undefined ? Number(f.recurrentes) : 0
         };
 
         {/* 4. MAPEO BLINDADO: OBJETO SUMMARY (KPIs) */}

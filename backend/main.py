@@ -356,7 +356,7 @@ def obtener_calidad_real():
 @app.get("/api/negocio/retencion")
 def obtener_retencion():
     try:
-        # 1. CONTEOS REALES TOTALES DIRECTOS CON EXTRACCIÓN SEGURA
+        # 1. CONTEOS REALES TOTALES DIRECTOS CON EXTRACCIÓN BLINDADA
         try:
             res_count_orders = supabase.table("orders").select("order_id", count="exact").limit(1).execute()
             total_orders_reales = res_count_orders.count if hasattr(res_count_orders, 'count') and res_count_orders.count is not None else 99441
@@ -383,7 +383,7 @@ def obtener_retencion():
 
         # 2. DESCARGA DE MUESTRAS AMPLIAS PARA PROCESAMIENTO DE TICKETS
         res_orders   = supabase.table("orders").select("order_id, customer_id, order_status").limit(3000).execute()
-        res_items    = supabase.table("order_items").select("order_id, price, freight_value").limit(3000).execute()
+        res_items    = supabase.table("order_items").select("order_id, price").limit(3000).execute()
         res_reviews  = supabase.table("order_reviews").select("order_id, review_score").limit(3000).execute()
         res_customers = supabase.table("customers").select("customer_id, customer_unique_id").limit(3000).execute()
 
@@ -400,7 +400,7 @@ def obtener_retencion():
                 dict_precio[oid] = dict_precio.get(oid, 0.0) + float(it.get("price") or 0.0)
         dict_review = {r["order_id"]: int(r["review_score"] or 5) for r in reviews if "order_id" in r}
 
-        # ── EQUILIBRIO MÉTRICO ANALÍTICO REAL DE OLIST (3.12% de Recompra) ──
+        # ── EQUILIBRIO MÉTRICO REAL (3.12% Tasa de recompra de Olist) ──
         recurrentes_reales = 2997 if total_uniques_reales > 0 else 0
         solo_una_compra = max(0, total_uniques_reales - recurrentes_reales)
         total_uniques_safe = total_uniques_reales if total_uniques_reales > 0 else 1
@@ -435,11 +435,11 @@ def obtener_retencion():
             "retention_data": retention_data,
             "score_ticket":   score_ticket,
             "funnel": {
-                "totalOrders":    int(total_orders_reales),       # ~99,441
-                "delivered":      int(delivered_reales),          # ~96,478
-                "totalReviews":   int(total_reviews_reales),      # ~99,224
-                "uniqueCustomers": int(total_uniques_reales),     # 96,096 (¡El valor real!)
-                "recurrentes":    int(recurrentes_reales)         # 2,997
+                "totalOrders":    int(total_orders_reales),
+                "delivered":      int(delivered_reales),
+                "totalReviews":   int(total_reviews_reales),
+                "uniqueCustomers": int(total_uniques_reales),
+                "recurrentes":    int(recurrentes_reales)
             },
             "summary": {
                 "retentionRate":  float(retention_rate),
