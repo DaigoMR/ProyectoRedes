@@ -66,9 +66,9 @@ def obtener_datos(since: str = Query(None)):
 def obtener_comportamiento_compra():
     try:
         # 1. TRAER LOS DATOS REALES DE TUS TABLAS DE NEGOCIO EN SUPABASE
-        res_ordenes = supabase.table("orders").select("order_id, order_purchase_timestamp, customer_id").limit(1000).execute()
-        res_items = supabase.table("order_items").select("order_id, price, freight_value").limit(1000).execute()
-        res_clientes = supabase.table("customers").select("customer_id, customer_state").limit(2000).execute()
+        res_ordenes = supabase.table("orders").select("order_id, order_purchase_timestamp, customer_id").limit(3000).execute()
+        res_items = supabase.table("order_items").select("order_id, price, freight_value").limit(3000).execute()
+        res_clientes = supabase.table("customers").select("customer_id, customer_state").limit(3000).execute()
 
         ordenes_list = res_ordenes.data or []
         items_list = res_items.data or []
@@ -231,9 +231,9 @@ from datetime import datetime
 def obtener_calidad_real():
     try:
         # 1. Recuperamos los datos de Supabase
-        res_reviews = supabase.table("order_reviews").select("review_score, review_creation_date, review_answer_timestamp").limit(1000).execute()
-        res_ordenes = supabase.table("orders").select("order_status, customer_id").limit(1000).execute()
-        res_clientes = supabase.table("customers").select("customer_id, customer_state").limit(2000).execute()
+        res_reviews = supabase.table("order_reviews").select("review_score, review_creation_date, review_answer_timestamp").limit(3000).execute()
+        res_ordenes = supabase.table("orders").select("order_status, customer_id").limit(3000).execute()
+        res_clientes = supabase.table("customers").select("customer_id, customer_state").limit(3000).execute()
 
         reviews = res_reviews.data or []
         ordenes = res_ordenes.data or []
@@ -373,10 +373,10 @@ def obtener_calidad_real():
 def obtener_retencion():
     try:
         # 1. Recuperamos los datos desde Supabase con un margen saludable de filas
-        res_orders   = supabase.table("orders").select("order_id, customer_id, order_status").limit(1000).execute()
-        res_items    = supabase.table("order_items").select("order_id, price, freight_value").limit(1000).execute()
-        res_reviews  = supabase.table("order_reviews").select("order_id, review_score").limit(1000).execute()
-        res_customers = supabase.table("customers").select("customer_id, customer_unique_id").limit(2000).execute()
+        res_orders   = supabase.table("orders").select("order_id, customer_id, order_status").limit(3000).execute()
+        res_items    = supabase.table("order_items").select("order_id, price, freight_value").limit(3000).execute()
+        res_reviews  = supabase.table("order_reviews").select("order_id, review_score").limit(3000).execute()
+        res_customers = supabase.table("customers").select("customer_id, customer_unique_id").limit(3000).execute()
 
         orders    = res_orders.data    or []
         items     = res_items.data     or []
@@ -543,9 +543,9 @@ def _retencion_vacio():
 def obtener_satisfaccion_logistica():
     try:
         # 1. Extracción de los datos desde Supabase (Filtramos un lote saludable de órdenes)
-        res_ordenes = supabase.table("orders").select("order_id, order_status, order_delivered_customer_date, order_estimated_delivery_date, customer_id").limit(1000).execute()
-        res_reviews = supabase.table("order_reviews").select("order_id, review_score").limit(1000).execute()
-        res_clientes = supabase.table("customers").select("customer_id, customer_state").limit(2000).execute()
+        res_ordenes = supabase.table("orders").select("order_id, order_status, order_delivered_customer_date, order_estimated_delivery_date, customer_id").limit(3000).execute()
+        res_reviews = supabase.table("order_reviews").select("order_id, review_score").limit(3000).execute()
+        res_clientes = supabase.table("customers").select("customer_id, customer_state").limit(3000).execute()
         
         ordenes = res_ordenes.data or []
         reviews = res_reviews.data or []
