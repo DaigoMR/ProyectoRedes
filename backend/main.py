@@ -23,25 +23,30 @@ supabase = create_client(URL, KEY)
 @app.get("/api/telemetria/packets")
 def obtener_datos(since: str = Query(None)):
     try:
+        # 1. CONTEO GLOBAL ABSOLUTO DIRECTO EN POSTGRESQL (Rompe el límite visual al recargar)
+        try:
+            res_total = supabase.table("registros_servidor").select("id", count="exact").limit(1).execute()
+            total_db = res_total.count if res_total.count is not None else 0
+        except Exception:
+            total_db = 0
+
+        # 2. CONSULTA DE REGISTROS INCREMENTALES O HISTÓRICOS
         query = supabase.table("registros_servidor").select("*")
         
         if since:
+            # Si el frontend ya tiene datos, solo pedimos las ráfagas nuevas
             query = query.gt("fecha", since)
         else:
-            # 💡 SOLUCCIÓN: Ampliamos el lote inicial de 50 a 500 registros
-            # para dar espacio a que entren múltiples paquetes UDP y TCP en ráfaga
-            query = query.order("fecha", desc=True).limit(500)
+            # 💡 OPTIMIZACIÓN: Al recargar, bajamos un lote inicial más amplio (ej. 3,000 registros)
+            # para alimentar las gráficas temporales de inmediato sin tumbar el servidor
+            query = query.order("fecha", desc=True).limit(3000)
             
         respuesta = query.execute()
         packets_formateados = []
         
-        # Mapeo idéntico para la interfaz
         for idx, row in enumerate(respuesta.data):
             origen = row.get("origen", "TCP")
             protocolo = "UDP" if origen == "UDP" else "TCP"
-            
-            # ATENCIÓN: Usamos el ID real de Supabase o la fecha para que React 
-            # sepa que cada registro es único y no los duplique o congele
             id_unico = row.get("id") or f"pkt-{row.get('fecha')}-{random.randint(100,999)}"
             
             packets_formateados.append({
@@ -56,11 +61,15 @@ def obtener_datos(since: str = Query(None)):
                 "latency_ms": random.randint(20, 50) if protocolo == "TCP" else random.randint(2, 10)
             })
 
-        return {"packets": packets_formateados}
+        # Retornamos los paquetes junto con la meta-métrica global del total real en DB
+        return {
+            "packets": packets_formateados,
+            "total_real_db": total_db
+        }
         
     except Exception as e:
         print(f"[API ERROR] Error en polling: {e}")
-        return {"packets": []}
+        return {"packets": [], "total_real_db": 0}
     
 @app.get("/api/negocio/comportamiento-compra")
 def obtener_comportamiento_compra():

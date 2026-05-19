@@ -4,14 +4,14 @@ import {
   Tooltip, ResponsiveContainer, Cell, PieChart, Pie
 } from "recharts";
 
-// ── CORRECCIÓN CRÍTICA: Apuntamos al endpoint real que declaraste en main.py ──
+// ── CONFIGURACIÓN DE RED Y POLLING ───────────────────────────────────────────
 const API_URL = "/api/telemetria/packets";
-const POLL_MS  = 3000; // polling cada 3 segundos
+const POLL_MS  = 3000; // Polling activo cada 3 segundos
 
-// Colores por protocolo
+// Paleta de colores de alta fidelidad por protocolo
 const COLOR = { TCP: "#3db876", UDP: "#4a6ef5" };
 
-// ── Tooltip ───────────────────────────────────────────────────────────────────
+// ── TOOLTIP BLINDADO PARA GRÁFICAS ───────────────────────────────────────────
 const ChartTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
@@ -26,29 +26,25 @@ const ChartTooltip = ({ active, payload, label }) => {
   );
 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── FORMATEADORES Y HELPERS DE DATOS ─────────────────────────────────────────
 function formatFecha(ts) {
   if (!ts) return "—";
-  try { return new Date(ts).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", second: "2-digit" }); }
-  catch { return ts; }
+  try { 
+    return new Date(ts).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", second: "2-digit" }); 
+  } catch { 
+    return ts; 
+  }
 }
 
 function getOrigen(row) {
   if (!row) return "—";
-
-  // 1. Extraemos el origen en mayúsculas y quitamos espacios
   const o = (row.origen || "").toString().trim().toUpperCase();
 
-  // 2. Si dice explícitamente UDP, es telemetría pura
   if (o === "UDP") return "UDP";
-
-  // 3. ¡EL TRUCO MÁGICO! Si dice TCP, o es cualquiera de tus etiquetas de negocio,
-  // sabemos con certeza que entró a través del socket concurrente TCP
   if (o === "TCP" || o === "ORDEN" || o === "ITEM" || o === "CLIENTE" || o === "REVIEW") {
     return "TCP";
   }
 
-  // 4. Inspección de respaldo por si el dato viniera anidado dentro del JSON de contenido
   if (row.contenido) {
     const textoContenido = JSON.stringify(row.contenido).toUpperCase();
     if (textoContenido.includes("UDP")) return "UDP";
@@ -56,11 +52,10 @@ function getOrigen(row) {
       return "TCP";
     }
   }
-
   return "—";
 }
 
-// Agrupa registros por ventana de 10s para la serie temporal
+// Ventana de agrupamiento temporal de 10 segundos para Recharts
 function buildTimeSeries(registros) {
   const buckets = {};
   registros.forEach(r => {
@@ -81,19 +76,18 @@ function buildTimeSeries(registros) {
     }));
 }
 
-// ── Componente principal ──────────────────────────────────────────────────────
+// ── COMPONENTE PRINCIPAL ─────────────────────────────────────────────────────
 export default function TabTelemetria() {
   const [registros, setRegistros]   = useState([]);
+  const [totalRealDB, setTotalRealDB] = useState(0); // 💡 Estado para el conteo real exacto de Supabase
   const [lastPoll, setLastPoll]     = useState(null);
   const [connected, setConnected]   = useState(false);
   
-  // Usamos una referencia (ref) para recordar la fecha del último paquete sin rehacer el componente
   const ultimaFechaRef = useRef(null);
   const intervalRef = useRef(null);
 
   const fetchData = async () => {
     try {
-      // Si ya tenemos una última fecha guardada, la mandamos como parámetro a FastAPI
       const urlConFiltro = ultimaFechaRef.current 
         ? `${API_URL}?since=${encodeURIComponent(ultimaFechaRef.current)}`
         : API_URL;
@@ -102,40 +96,37 @@ export default function TabTelemetria() {
       
       if (res.ok) {
         const json = await res.json();
-        const nuevosPackets = json.packets || json.data || json || [];
+        const nuevosPackets = json.packets || [];
+        
+        // Sincronizamos el conteo global exacto enviado por la API
+        if (json.total_real_db !== undefined) {
+          setTotalRealDB(json.total_real_db);
+        }
         
         if (nuevosPackets.length > 0) {
-          // 1. Buscamos el registro más nuevo del lote recibido para actualizar nuestro cursor
           const fechas = nuevosPackets.map(p => p.fecha).filter(Boolean);
           if (fechas.length > 0) {
-            // El paquete más reciente será la estampa de tiempo más alta
             const masReciente = fechas.sort((a, b) => new Date(b) - new Date(a))[0];
             ultimaFechaRef.current = masReciente;
           }
 
-          // 2. ACUMULACIÓN ASÍNCRONA: Si es la carga inicial, guardamos el lote.
-          // Si es polling, concatenamos lo nuevo al array existente y removemos duplicados por ID.
+          // Concatenación incremental reactiva libre de duplicados por ID
           setRegistros(prev => {
             const mapaUnico = new Map();
-            // Metemos los registros viejos al mapa
             prev.forEach(p => mapaUnico.set(p.id, p));
-            // Inyectamos o sobrescribimos con los nuevos
             nuevosPackets.forEach(p => mapaUnico.set(p.id, p));
             
-            // Retornamos la lista unificada y ordenada cronológicamente
             return Array.from(mapaUnico.values())
               .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
           });
         }
-        
         setConnected(true);
       } else {
         setConnected(false);
       }
-      
       setLastPoll(new Date().toLocaleTimeString("es-MX"));
     } catch (e) {
-      console.error("[TabTelemetria] Error en cursor incremental:", e);
+      console.error("[TabTelemetria] Error en cursor incremental de red:", e);
       setConnected(false);
     }
   };
@@ -146,14 +137,11 @@ export default function TabTelemetria() {
     return () => clearInterval(intervalRef.current);
   }, []);
 
-  // ── Métricas derivadas y Moldes de Respaldo en Cero ────────────────────────
+  // ── PROCESAMIENTO ANALÍTICO LOCAL ──────────────────────────────────────────
   const total   = registros.length;
-  const tcpRows = registros.filter(r => getOrigen(r) === "TCP");
-  const udpRows = registros.filter(r => getOrigen(r) === "UDP");
-  const tcpCount = tcpRows.length;
-  const udpCount = udpRows.length;
+  const tcpCount = registros.filter(r => getOrigen(r) === "TCP").length;
+  const udpCount = registros.filter(r => getOrigen(r) === "UDP").length;
 
-  // Si no hay datos, creamos una línea temporal muestra vacía pero estilizada
   let timeSeries = buildTimeSeries(registros);
   if (timeSeries.length === 0) {
     timeSeries = [
@@ -163,19 +151,12 @@ export default function TabTelemetria() {
     ];
   }
 
-  // Distribución por origen (pie) con molde por defecto
   let pieData = [
     { name: "TCP", value: tcpCount, color: COLOR.TCP },
     { name: "UDP", value: udpCount, color: COLOR.UDP },
   ];
-  if (total === 0) {
-    pieData = [
-      { name: "TCP", value: 0, color: COLOR.TCP },
-      { name: "UDP", value: 0, color: COLOR.UDP }
-    ];
-  }
 
-  // Paquetes por cliente_info
+  // Matriz de distribución por cliente_info (IPs de red)
   const clientMap = {};
   registros.forEach(r => {
     const key = r.cliente_info || "Desconocido";
@@ -194,7 +175,7 @@ export default function TabTelemetria() {
     ];
   }
 
-  // Actividad por hora
+  // Segmentación por hora del día
   const hourMap = {};
   registros.forEach(r => {
     if (!r.fecha) return;
@@ -219,7 +200,7 @@ export default function TabTelemetria() {
 
   return (
     <div>
-      {/* Header */}
+      {/* Header Informativo */}
       <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
           <h1 className="page-title">Telemetría <em>TCP vs UDP</em></h1>
@@ -237,11 +218,7 @@ export default function TabTelemetria() {
             padding: "5px 12px", borderRadius: 20,
             border: `1px solid ${connected ? "rgba(61,184,118,0.3)" : "rgba(224,85,85,0.3)"}`,
           }}>
-            <span style={{
-              width: 7, height: 7, borderRadius: "50%",
-              background: connected ? "#3db876" : "#e05555",
-              display: "inline-block",
-            }} />
+            <span style={{ width: 7, height: 7, borderRadius: "50%", background: connected ? "#3db876" : "#e05555", display: "inline-block" }} />
             {connected ? "Conectado" : "Sin conexión o vacío"}
           </span>
           {lastPoll && (
@@ -252,11 +229,12 @@ export default function TabTelemetria() {
         </div>
       </div>
 
-      {/* KPIs */}
+      {/* ── KPIs Dinámicos ── */}
       <div className="stat-row">
         <div className="stat-card" style={{ "--card-accent": "#6c8dfa" }}>
           <div className="stat-label">Total de registros</div>
-          <div className="stat-value">{total.toLocaleString()}</div>
+          {/* Sincronización del total ilimitado de la BD contra la acumulación en caché local */}
+          <div className="stat-value">{(totalRealDB > total ? totalRealDB : total).toLocaleString()}</div>
           <div className="stat-sub">en registros_servidor</div>
         </div>
         <div className="stat-card" style={{ "--card-accent": COLOR.TCP }}>
@@ -278,10 +256,10 @@ export default function TabTelemetria() {
         </div>
       </div>
 
-      {/* Charts row 1 */}
+      {/* Grid de Gráficas Fluyentes 1 */}
       <div className="charts-grid charts-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 24 }}>
         
-        {/* Serie temporal */}
+        {/* Serie Temporal en ráfaga */}
         <div className="chart-card">
           <div className="chart-title">Paquetes recibidos en el tiempo</div>
           <div className="chart-desc">Agrupados en ventanas de 10 segundos · últimos 30 buckets</div>
@@ -307,7 +285,7 @@ export default function TabTelemetria() {
           </ResponsiveContainer>
         </div>
 
-        {/* Pie TCP vs UDP */}
+        {/* Proporción Relativa de Protocolos */}
         <div className="chart-card">
           <div className="chart-title">Proporción TCP vs UDP</div>
           <div className="chart-desc">Del total de paquetes registrados en Supabase</div>
@@ -337,9 +315,9 @@ export default function TabTelemetria() {
         </div>
       </div>
 
-      {/* Charts row 2 */}
+      {/* Grid de Gráficas Fluyentes 2 */}
       <div className="charts-grid charts-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 24 }}>
-        {/* Por cliente/agente */}
+        {/* Distribución por Socket de Red / Agente */}
         <div className="chart-card">
           <div className="chart-title">Paquetes por cliente / agente</div>
           <div className="chart-desc">Top 10 fuentes por campo cliente_info</div>
@@ -355,7 +333,7 @@ export default function TabTelemetria() {
           </ResponsiveContainer>
         </div>
 
-        {/* Actividad por hora */}
+        {/* Carga por Matriz de Horarios */}
         <div className="chart-card">
           <div className="chart-title">Actividad por hora del día</div>
           <div className="chart-desc">Distribución de paquetes TCP y UDP según la hora en que llegaron</div>
@@ -372,7 +350,7 @@ export default function TabTelemetria() {
         </div>
       </div>
 
-      {/* Log tabla */}
+      {/* ── LOG CONSOLA DE PACKETS EN TIEMPO REAL ── */}
       <div className="chart-card">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <div>
@@ -386,7 +364,7 @@ export default function TabTelemetria() {
             color: "var(--text-muted)", background: "var(--bg-3)",
             padding: "4px 10px", borderRadius: 20, border: "1px solid var(--border)"
           }}>
-            {total} registros totales
+            {totalRealDB > total ? totalRealDB : total} registros totales
           </span>
         </div>
 
@@ -401,7 +379,7 @@ export default function TabTelemetria() {
             borderRadius: 8, border: "1px solid var(--border)",
             background: "var(--bg-card)",
           }}>
-            {/* Header */}
+            {/* Header Fijo */}
             <div style={{
               display: "grid",
               gridTemplateColumns: "60px 70px 160px 1fr 160px",
@@ -410,6 +388,7 @@ export default function TabTelemetria() {
               color: "var(--text-muted)", fontSize: 10,
               textTransform: "uppercase", letterSpacing: "0.06em",
               position: "sticky", top: 0, background: "var(--bg-card)",
+              zIndex: 10
             }}>
               <span>ID</span>
               <span>ORIGEN</span>
@@ -453,10 +432,10 @@ export default function TabTelemetria() {
         )}
 
         <div className="insight" style={{ marginTop: 16 }}>
-          <span className="insight-icon">📡</span>
+          <span className="insight-icon">💡</span>
           <span>
             <strong>TCP</strong> garantiza entrega y orden — ideal para los registros de órdenes Olist.{" "}
-            <strong>UDP</strong> prioriza velocidad — ideal para la telemetría de sensores en tiempo real. Ambos coexisten en la misma tabla.
+            <strong>UDP</strong> prioriza velocidad — ideal para la telemetría de sensores en tiempo real. Ambos coexisten en la misma tabla de telemetría.
           </span>
         </div>
       </div>
